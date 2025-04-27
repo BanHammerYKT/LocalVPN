@@ -1,0 +1,21 @@
+[versions]
+############################### Application ###############################
+appVersionName = "1.0"
+appVersionCode = "1"
+appMinSdk = "21"
+appTargetSdk = "35"
+appCompileSdk = "35"
+################################# Plugins #################################
+agp = "8.9.2"                       # https://developer.android.com/build/releases/gradle-plugin#android_gradle_plugin_and_android_studio_compatibility
+kotlin = "2.1.20"                   # https://kotlinlang.org/docs/releases.html#release-details
+################################ Libraries ################################
+appcompat = "28.0.0"                # https://developer.android.com/topic/libraries/support-library/packages
+
+[libraries]
+appcompat-v7 = { group = "com.android.support", name = "appcompat-v7", version.ref = "appcompat" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+
+[bundles]
