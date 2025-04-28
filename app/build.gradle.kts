@@ -5,11 +5,13 @@ plugins {
 
 android {
     namespace = "xyz.hexene.localvpn"
+    //noinspection GradleDependency
     compileSdk = libs.versions.appCompileSdk.get().toInt()
 
     defaultConfig {
         applicationId = "xyz.hexene.localvpn"
         minSdk = libs.versions.appMinSdk.get().toInt()
+        //noinspection OldTargetApi
         targetSdk = libs.versions.appTargetSdk.get().toInt()
         versionCode = libs.versions.appVersionCode.get().toInt()
         versionName = libs.versions.appVersionName.get()

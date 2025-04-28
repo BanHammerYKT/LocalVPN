@@ -31,16 +31,17 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import xyz.hexene.localvpn.Packet.TCPHeader;
 import xyz.hexene.localvpn.TCB.TCBStatus;
 
+/** @noinspection SynchronizationOnLocalVariableOrMethodParameter, BusyWait */
 public class TCPOutput implements Runnable
 {
     private static final String TAG = TCPOutput.class.getSimpleName();
 
-    private LocalVPNService vpnService;
-    private ConcurrentLinkedQueue<Packet> inputQueue;
-    private ConcurrentLinkedQueue<ByteBuffer> outputQueue;
-    private Selector selector;
+    private final LocalVPNService vpnService;
+    private final ConcurrentLinkedQueue<Packet> inputQueue;
+    private final ConcurrentLinkedQueue<ByteBuffer> outputQueue;
+    private final Selector selector;
 
-    private Random random = new Random();
+    private final Random random = new Random();
     public TCPOutput(ConcurrentLinkedQueue<Packet> inputQueue, ConcurrentLinkedQueue<ByteBuffer> outputQueue,
                      Selector selector, LocalVPNService vpnService)
     {
@@ -73,35 +74,37 @@ public class TCPOutput implements Runnable
                 if (currentThread.isInterrupted())
                     break;
 
-                ByteBuffer payloadBuffer = currentPacket.backingBuffer;
-                currentPacket.backingBuffer = null;
-                ByteBuffer responseBuffer = ByteBufferPool.acquire();
+                if (currentPacket != null) {
+                    ByteBuffer payloadBuffer = currentPacket.backingBuffer;
+                    currentPacket.backingBuffer = null;
+                    ByteBuffer responseBuffer = ByteBufferPool.acquire();
 
-                InetAddress destinationAddress = currentPacket.ip4Header.destinationAddress;
+                    InetAddress destinationAddress = currentPacket.ip4Header.destinationAddress;
 
-                TCPHeader tcpHeader = currentPacket.tcpHeader;
-                int destinationPort = tcpHeader.destinationPort;
-                int sourcePort = tcpHeader.sourcePort;
+                    TCPHeader tcpHeader = currentPacket.tcpHeader;
+                    int destinationPort = tcpHeader.destinationPort;
+                    int sourcePort = tcpHeader.sourcePort;
 
-                String ipAndPort = destinationAddress.getHostAddress() + ":" +
-                        destinationPort + ":" + sourcePort;
-                TCB tcb = TCB.getTCB(ipAndPort);
-                if (tcb == null)
-                    initializeConnection(ipAndPort, destinationAddress, destinationPort,
-                            currentPacket, tcpHeader, responseBuffer);
-                else if (tcpHeader.isSYN())
-                    processDuplicateSYN(tcb, tcpHeader, responseBuffer);
-                else if (tcpHeader.isRST())
-                    closeCleanly(tcb, responseBuffer);
-                else if (tcpHeader.isFIN())
-                    processFIN(tcb, tcpHeader, responseBuffer);
-                else if (tcpHeader.isACK())
-                    processACK(tcb, tcpHeader, payloadBuffer, responseBuffer);
+                    String ipAndPort = destinationAddress.getHostAddress() + ":" +
+                            destinationPort + ":" + sourcePort;
+                    TCB tcb = TCB.getTCB(ipAndPort);
+                    if (tcb == null)
+                        initializeConnection(ipAndPort, destinationAddress, destinationPort,
+                                currentPacket, tcpHeader, responseBuffer);
+                    else if (tcpHeader.isSYN())
+                        processDuplicateSYN(tcb, tcpHeader, responseBuffer);
+                    else if (tcpHeader.isRST())
+                        closeCleanly(tcb, responseBuffer);
+                    else if (tcpHeader.isFIN())
+                        processFIN(tcb, tcpHeader, responseBuffer);
+                    else if (tcpHeader.isACK())
+                        processACK(tcb, tcpHeader, payloadBuffer, responseBuffer);
 
-                // XXX: cleanup later
-                if (responseBuffer.position() == 0)
-                    ByteBufferPool.release(responseBuffer);
-                ByteBufferPool.release(payloadBuffer);
+                    // XXX: cleanup later
+                    if (responseBuffer.position() == 0)
+                        ByteBufferPool.release(responseBuffer);
+                    ByteBufferPool.release(payloadBuffer);
+                }
             }
         }
         catch (InterruptedException e)

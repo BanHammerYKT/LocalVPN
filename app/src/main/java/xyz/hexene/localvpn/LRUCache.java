@@ -18,10 +18,11 @@ package xyz.hexene.localvpn;
 
 import java.util.LinkedHashMap;
 
+/** @noinspection rawtypes, unchecked */
 public class LRUCache<K, V> extends LinkedHashMap<K, V>
 {
-    private int maxSize;
-    private CleanupCallback callback;
+    private final int maxSize;
+    private final CleanupCallback callback;
 
     public LRUCache(int maxSize, CleanupCallback callback)
     {
@@ -42,8 +43,8 @@ public class LRUCache<K, V> extends LinkedHashMap<K, V>
         return false;
     }
 
-    public static interface CleanupCallback<K, V>
+    public interface CleanupCallback<K, V>
     {
-        public void cleanup(Entry<K, V> eldest);
+        void cleanup(Entry<K, V> eldest);
     }
 }

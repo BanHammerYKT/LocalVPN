@@ -151,11 +151,11 @@ public class LocalVPNService extends VpnService
     {
         private static final String TAG = VPNRunnable.class.getSimpleName();
 
-        private FileDescriptor vpnFileDescriptor;
+        private final FileDescriptor vpnFileDescriptor;
 
-        private ConcurrentLinkedQueue<Packet> deviceToNetworkUDPQueue;
-        private ConcurrentLinkedQueue<Packet> deviceToNetworkTCPQueue;
-        private ConcurrentLinkedQueue<ByteBuffer> networkToDeviceQueue;
+        private final ConcurrentLinkedQueue<Packet> deviceToNetworkUDPQueue;
+        private final ConcurrentLinkedQueue<Packet> deviceToNetworkTCPQueue;
+        private final ConcurrentLinkedQueue<ByteBuffer> networkToDeviceQueue;
 
         public VPNRunnable(FileDescriptor vpnFileDescriptor,
                            ConcurrentLinkedQueue<Packet> deviceToNetworkUDPQueue,
@@ -168,6 +168,7 @@ public class LocalVPNService extends VpnService
             this.networkToDeviceQueue = networkToDeviceQueue;
         }
 
+        /** @noinspection resource, BusyWait */
         @Override
         public void run()
         {

@@ -27,13 +27,14 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+/** @noinspection BusyWait*/
 public class UDPInput implements Runnable
 {
     private static final String TAG = UDPInput.class.getSimpleName();
     private static final int HEADER_SIZE = Packet.IP4_HEADER_SIZE + Packet.UDP_HEADER_SIZE;
 
-    private Selector selector;
-    private ConcurrentLinkedQueue<ByteBuffer> outputQueue;
+    private final Selector selector;
+    private final ConcurrentLinkedQueue<ByteBuffer> outputQueue;
 
     public UDPInput(ConcurrentLinkedQueue<ByteBuffer> outputQueue, Selector selector)
     {
@@ -70,10 +71,12 @@ public class UDPInput implements Runnable
                         // Leave space for the header
                         receiveBuffer.position(HEADER_SIZE);
 
-                        DatagramChannel inputChannel = (DatagramChannel) key.channel();
-                        // XXX: We should handle any IOExceptions here immediately,
-                        // but that probably won't happen with UDP
-                        int readBytes = inputChannel.read(receiveBuffer);
+                        int readBytes;
+                        try (DatagramChannel inputChannel = (DatagramChannel) key.channel()) {
+                            // XXX: We should handle any IOExceptions here immediately,
+                            // but that probably won't happen with UDP
+                            readBytes = inputChannel.read(receiveBuffer);
+                        }
 
                         Packet referencePacket = (Packet) key.attachment();
                         referencePacket.updateUDPBuffer(receiveBuffer, readBytes);

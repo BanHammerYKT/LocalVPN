@@ -29,24 +29,18 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+/** @noinspection resource, BusyWait */
 public class UDPOutput implements Runnable
 {
     private static final String TAG = UDPOutput.class.getSimpleName();
 
-    private LocalVPNService vpnService;
-    private ConcurrentLinkedQueue<Packet> inputQueue;
-    private Selector selector;
+    private final LocalVPNService vpnService;
+    private final ConcurrentLinkedQueue<Packet> inputQueue;
+    private final Selector selector;
 
     private static final int MAX_CACHE_SIZE = 50;
-    private LRUCache<String, DatagramChannel> channelCache =
-            new LRUCache<>(MAX_CACHE_SIZE, new LRUCache.CleanupCallback<String, DatagramChannel>()
-            {
-                @Override
-                public void cleanup(Map.Entry<String, DatagramChannel> eldest)
-                {
-                    closeChannel(eldest.getValue());
-                }
-            });
+    private final LRUCache<String, DatagramChannel> channelCache =
+            new LRUCache<>(MAX_CACHE_SIZE, (LRUCache.CleanupCallback<String, DatagramChannel>) eldest -> closeChannel(eldest.getValue()));
 
     public UDPOutput(ConcurrentLinkedQueue<Packet> inputQueue, Selector selector, LocalVPNService vpnService)
     {
@@ -78,48 +72,47 @@ public class UDPOutput implements Runnable
                 if (currentThread.isInterrupted())
                     break;
 
-                InetAddress destinationAddress = currentPacket.ip4Header.destinationAddress;
-                int destinationPort = currentPacket.udpHeader.destinationPort;
-                int sourcePort = currentPacket.udpHeader.sourcePort;
+                if (currentPacket != null) {
+                    InetAddress destinationAddress = currentPacket.ip4Header.destinationAddress;
+                    int destinationPort = currentPacket.udpHeader.destinationPort;
+                    int sourcePort = currentPacket.udpHeader.sourcePort;
 
-                String ipAndPort = destinationAddress.getHostAddress() + ":" + destinationPort + ":" + sourcePort;
-                DatagramChannel outputChannel = channelCache.get(ipAndPort);
-                if (outputChannel == null) {
-                    outputChannel = DatagramChannel.open();
-                    vpnService.protect(outputChannel.socket());
+                    String ipAndPort = destinationAddress.getHostAddress() + ":" + destinationPort + ":" + sourcePort;
+                    DatagramChannel outputChannel = channelCache.get(ipAndPort);
+                    if (outputChannel == null) {
+                        outputChannel = DatagramChannel.open();
+                        vpnService.protect(outputChannel.socket());
+                        try {
+                            outputChannel.connect(new InetSocketAddress(destinationAddress, destinationPort));
+                        } catch (IOException e) {
+                            Log.e(TAG, "Connection error: " + ipAndPort, e);
+                            closeChannel(outputChannel);
+                            ByteBufferPool.release(currentPacket.backingBuffer);
+                            continue;
+                        }
+                        outputChannel.configureBlocking(false);
+                        currentPacket.swapSourceAndDestination();
+
+                        selector.wakeup();
+                        outputChannel.register(selector, SelectionKey.OP_READ, currentPacket);
+
+                        channelCache.put(ipAndPort, outputChannel);
+                    }
+
                     try
                     {
-                        outputChannel.connect(new InetSocketAddress(destinationAddress, destinationPort));
+                        ByteBuffer payloadBuffer = currentPacket.backingBuffer;
+                        while (payloadBuffer.hasRemaining())
+                            outputChannel.write(payloadBuffer);
                     }
                     catch (IOException e)
                     {
-                        Log.e(TAG, "Connection error: " + ipAndPort, e);
+                        Log.e(TAG, "Network write error: " + ipAndPort, e);
+                        channelCache.remove(ipAndPort);
                         closeChannel(outputChannel);
-                        ByteBufferPool.release(currentPacket.backingBuffer);
-                        continue;
                     }
-                    outputChannel.configureBlocking(false);
-                    currentPacket.swapSourceAndDestination();
-
-                    selector.wakeup();
-                    outputChannel.register(selector, SelectionKey.OP_READ, currentPacket);
-
-                    channelCache.put(ipAndPort, outputChannel);
+                    ByteBufferPool.release(currentPacket.backingBuffer);
                 }
-
-                try
-                {
-                    ByteBuffer payloadBuffer = currentPacket.backingBuffer;
-                    while (payloadBuffer.hasRemaining())
-                        outputChannel.write(payloadBuffer);
-                }
-                catch (IOException e)
-                {
-                    Log.e(TAG, "Network write error: " + ipAndPort, e);
-                    channelCache.remove(ipAndPort);
-                    closeChannel(outputChannel);
-                }
-                ByteBufferPool.release(currentPacket.backingBuffer);
             }
         }
         catch (InterruptedException e)

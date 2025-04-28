@@ -24,7 +24,6 @@ import android.net.VpnService;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
-import android.view.View;
 import android.widget.Button;
 
 
@@ -34,7 +33,7 @@ public class LocalVPN extends AppCompatActivity
 
     private boolean waitingForVPNStart;
 
-    private BroadcastReceiver vpnStateReceiver = new BroadcastReceiver()
+    private final BroadcastReceiver vpnStateReceiver = new BroadcastReceiver()
     {
         @Override
         public void onReceive(Context context, Intent intent)
@@ -52,15 +51,8 @@ public class LocalVPN extends AppCompatActivity
     {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_local_vpn);
-        final Button vpnButton = (Button)findViewById(R.id.vpn);
-        vpnButton.setOnClickListener(new View.OnClickListener()
-        {
-            @Override
-            public void onClick(View v)
-            {
-                startVPN();
-            }
-        });
+        final Button vpnButton = findViewById(R.id.vpn);
+        vpnButton.setOnClickListener(v -> startVPN());
         waitingForVPNStart = false;
         LocalBroadcastManager.getInstance(this).registerReceiver(vpnStateReceiver,
                 new IntentFilter(LocalVPNService.BROADCAST_VPN_STATE));
@@ -96,7 +88,7 @@ public class LocalVPN extends AppCompatActivity
 
     private void enableButton(boolean enable)
     {
-        final Button vpnButton = (Button) findViewById(R.id.vpn);
+        final Button vpnButton = findViewById(R.id.vpn);
         if (enable)
         {
             vpnButton.setEnabled(true);

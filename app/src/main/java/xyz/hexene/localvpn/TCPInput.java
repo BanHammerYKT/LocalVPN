@@ -34,8 +34,8 @@ public class TCPInput implements Runnable
     private static final String TAG = TCPInput.class.getSimpleName();
     private static final int HEADER_SIZE = Packet.IP4_HEADER_SIZE + Packet.TCP_HEADER_SIZE;
 
-    private ConcurrentLinkedQueue<ByteBuffer> outputQueue;
-    private Selector selector;
+    private final ConcurrentLinkedQueue<ByteBuffer> outputQueue;
+    private final Selector selector;
 
     public TCPInput(ConcurrentLinkedQueue<ByteBuffer> outputQueue, Selector selector)
     {
@@ -43,6 +43,7 @@ public class TCPInput implements Runnable
         this.selector = selector;
     }
 
+    /** @noinspection BusyWait*/
     @Override
     public void run()
     {
@@ -115,6 +116,7 @@ public class TCPInput implements Runnable
         }
     }
 
+    /** @noinspection SynchronizationOnLocalVariableOrMethodParameter*/
     private void processInput(SelectionKey key, Iterator<SelectionKey> keyIterator)
     {
         keyIterator.remove();
